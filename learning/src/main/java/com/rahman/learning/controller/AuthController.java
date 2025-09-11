@@ -2,7 +2,9 @@ package com.rahman.learning.controller;
 import com.rahman.learning.dto.AuthRequest;
 import com.rahman.learning.entity.User;
 import com.rahman.learning.service.UserService;
+import com.rahman.learning.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,16 +19,17 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody AuthRequest authRequest) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest authRequest) {
         User user = userService.findByEmail(authRequest.getEmail());
         if (user == null) {
-            return "User not found";
+            return ResponseEntity.status(404).body("User not found");
         }
 
         if (user.getPassword().equals(authRequest.getPassword())) {
-            return "Authentication Successful";
+            String token = JwtUtil.generateToken(user.getEmail());
+            return ResponseEntity.ok().body("Bearer " + token);
         } else {
-            return "Invalid credentials";
+            return ResponseEntity.status(401).body("Invalid credentials");
         }
     }
 }
