@@ -1,47 +1,89 @@
 package com.rahman.learning.service;
+import com.rahman.learning.dto.UserDTO;
 import com.rahman.learning.entity.User;
 import com.rahman.learning.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class UserService {
+
     private UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Autowired
-    public void settingUserRepository(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserRepository setUserRepository(UserRepository userRepository) {
+        return this.userRepository = userRepository;
     }
 
-    public User saveUsers(User user) {
-        return userRepository.save(user);
-    }
-
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
-    }
-
-    public User findUserById(Long id) {
-        return userRepository.findById(id).get();
-    }
-
-    public void deleteUserById(Long id) {
-        userRepository.deleteById(id);
-    }
-
-    public User updateUser(User user, Long id) throws Exception {
-        Optional<User> existingUserOptional = userRepository.findById(id);
-        if (!existingUserOptional.isPresent()) {
-            throw new Exception("User not found with id: " + id);
+    public Map<String, Object> saveUser(User user) {
+        final Map<String, Object> response = new HashMap<>();
+        try {
+            if (Objects.isNull(user)){
+                response.put("error", "please enter user details");
+            }
+            String encodedPassword = passwordEncoder.encode(user.getPassword());
+            user.setPassword(encodedPassword);
+            userRepository.save(user);
+            response.put("success", true);
+            response.put("output", "user has been saved successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("error", e.getMessage());
         }
-        User existingUser = existingUserOptional.get();
-        user.setId(existingUser.getId());
-        return userRepository.save(user);
+        return response;
     }
 
-    public User findByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public Map<String, Object> fetchUsers(int page, int size) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Page<User> users = userRepository.findAll(PageRequest.of(page - 1, size));
+            List<UserDTO> userDTOs = users.stream()
+                    .map(user -> new UserDTO(user.getId(), user.getFirstName(), user.getLastName()))
+                    .toList();
+            response.put("users", userDTOs);
+            response.put("success", true);
+            response.put("output", "Users have been fetched successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("error", e.getMessage());
+        }
+        return response;
+    }
+
+    public Map<String, Object> userDetails(Long id) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (Objects.isNull(id)) {
+                response.put("success", false);
+                response.put("error", "User ID is null");
+                return response;
+            }
+
+            Optional<User> userOptional = userRepository.findById(id);
+
+            if (!userOptional.isPresent()) {
+                response.put("success", false);
+                response.put("message", "User not found by this ID: " + id);
+                return response;
+            }
+
+            User user = userOptional.get();
+            UserDTO userDTO = new UserDTO(user.getId(), user.getFirstName(), user.getLastName());
+
+            response.put("success", true);
+            response.put("message", "User fetched successfully");
+            response.put("user", userDTO);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("error", e.getMessage());
+        }
+        return response;
     }
 }
